@@ -1,0 +1,1279 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Portfolio Tracker v2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0f1117;--bg2:#181c27;--bg3:#1e2333;--border:#2a3050;
+  --text:#e8eaf0;--text2:#8892b0;--text3:#4a5580;
+  --green:#1db87a;--red:#e05050;--blue:#4a9eff;--amber:#f5a623;
+  --purple:#a78bfa;--teal:#2dd4bf;--pink:#f472b6;
+  --radius:10px;--radius-lg:14px;
+}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+.app{max-width:1300px;margin:0 auto;padding:20px}
+
+/* HEADER */
+header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;flex-wrap:wrap;gap:12px}
+.logo{font-size:22px;font-weight:700}.logo span{color:var(--blue)}
+.header-right{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.last-upd{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.metric{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;position:relative;overflow:hidden}
+.metric-label{font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.metric-val{font-size:22px;font-weight:700;line-height:1}
+.metric-sub{font-size:11px;margin-top:5px;color:var(--text2)}
+.metric-icon{position:absolute;right:12px;top:12px;font-size:22px;opacity:.15}
+.up{color:var(--green)}.down{color:var(--red)}.neutral{color:var(--text2)}
+
+/* TABS */
+.tabs{display:flex;gap:2px;margin-bottom:18px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:4px;width:fit-content;flex-wrap:wrap}
+.tab{padding:7px 16px;font-size:13px;cursor:pointer;border:none;background:none;color:var(--text2);border-radius:8px;transition:all .15s;white-space:nowrap}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--bg3);color:var(--text);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.panel{display:none}.panel.active{display:block}
+
+/* BUTTONS */
+.btn{border:1px solid var(--border);background:none;border-radius:var(--radius);padding:8px 14px;font-size:13px;cursor:pointer;color:var(--text);display:inline-flex;align-items:center;gap:6px;transition:all .15s;white-space:nowrap}
+.btn:hover{background:var(--bg3);border-color:var(--blue)}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-primary:hover{background:#3a8ef0}
+.btn-green{background:rgba(29,184,122,.15);border-color:var(--green);color:var(--green)}
+.btn-sm{padding:5px 12px;font-size:12px}
+.btn-danger{border-color:transparent;background:none;color:var(--text3);padding:4px 8px}
+.btn-danger:hover{background:rgba(224,80,80,.15);color:var(--red);border-color:transparent}
+
+/* TABLE */
+.toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px}
+.filt-bar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.filt{border:1px solid var(--border);background:none;border-radius:20px;padding:4px 12px;font-size:12px;cursor:pointer;color:var(--text2);transition:all .15s}
+.filt:hover{border-color:var(--blue);color:var(--text)}
+.filt.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+.merge-toggle{display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;background:rgba(74,158,255,.08);padding:4px 10px;border-radius:20px;border:1px solid rgba(74,158,255,.2);color:var(--text2)}
+.merge-toggle input{cursor:pointer}
+
+.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:9px 12px;font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;background:var(--bg2);border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer}
+th:hover{color:var(--text)}
+td{padding:9px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+.badge{padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;text-transform:uppercase}
+.badge-stock{background:rgba(74,158,255,.15);color:var(--blue)}
+.badge-etf{background:rgba(29,184,122,.15);color:var(--green)}
+.badge-crypto{background:rgba(245,166,35,.15);color:var(--amber)}
+.badge-option{background:rgba(244,114,182,.15);color:var(--pink)}
+.badge-call{background:rgba(29,184,122,.2);color:var(--green);font-size:9px;padding:1px 5px}
+.badge-put{background:rgba(224,80,80,.2);color:var(--red);font-size:9px;padding:1px 5px}
+
+.sym{font-weight:700;font-size:14px;display:flex;align-items:center;gap:5px}
+.note-text{font-size:10px;color:var(--text3);margin-top:2px}
+.expiry-badge{font-size:10px;padding:1px 6px;border-radius:3px}
+.expiry-ok{background:rgba(29,184,122,.12);color:var(--green)}
+.expiry-warn{background:rgba(245,166,35,.15);color:var(--amber)}
+.expiry-expired{background:rgba(224,80,80,.15);color:var(--red)}
+.plat-tag{font-size:10px;color:var(--text3);background:var(--bg3);padding:2px 7px;border-radius:4px}
+
+/* CHARTS */
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.chart-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px}
+.chart-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;font-size:11px;color:var(--text2);margin-bottom:8px}
+.legend span{display:flex;align-items:center;gap:4px}
+.leg-dot{width:9px;height:9px;border-radius:2px;flex-shrink:0}
+
+/* PERFORMANCE CHART */
+.perf-chart-box{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px}
+.perf-controls{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.perf-btn{padding:4px 12px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:none;color:var(--text2);cursor:pointer;transition:all .15s}
+.perf-btn.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+
+/* DIVIDENDS */
+.div-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:16px}
+.div-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:14px}
+.div-card label{display:block;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.div-card .val{font-size:20px;font-weight:700}
+.div-table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--radius-lg)}
+.div-add-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+
+/* ALLOCATION */
+.alloc-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:14px}
+.alloc-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border)}
+.alloc-row:last-child{border-bottom:none}
+.alloc-label{flex:1;font-size:13px}
+.alloc-bar-wrap{width:120px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden}
+.alloc-bar{height:100%;border-radius:3px;transition:width .3s}
+.alloc-pct{font-size:12px;color:var(--text2);width:45px;text-align:right}
+.alloc-val{font-size:12px;color:var(--text2);width:80px;text-align:right}
+
+/* DEPOSITS */
+.deposit-section{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px}
+.deposit-add-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:24px;width:480px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:700;margin-bottom:18px;display:flex;justify-content:space-between}
+.form-row{margin-bottom:12px}
+.form-row label{display:block;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
+.form-row input,.form-row select{width:100%;padding:9px 12px;font-size:13px;border:1px solid var(--border);border-radius:var(--radius);background:var(--bg3);color:var(--text);outline:none;transition:border-color .15s}
+.form-row input:focus,.form-row select:focus{border-color:var(--blue)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-btns{display:flex;gap:8px;margin-top:16px;justify-content:flex-end}
+.opt-fields{background:rgba(244,114,182,.05);border:1px solid rgba(244,114,182,.2);border-radius:var(--radius);padding:10px;margin-bottom:10px}
+.opt-fields-title{font-size:10px;color:var(--pink);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+
+/* PLATFORM CARDS */
+.platform-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px}
+.platform-card h4{font-size:15px;font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between}
+.plat-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.plat-metric label{display:block;font-size:10px;color:var(--text2);margin-bottom:3px}
+.plat-metric .val{font-size:17px;font-weight:700}
+.plat-chips{display:flex;flex-wrap:wrap;gap:5px}
+.chip{background:var(--bg3);border:1px solid var(--border);padding:3px 8px;border-radius:4px;font-size:11px;color:var(--text2)}
+
+.empty-state{text-align:center;padding:40px;color:var(--text2);font-size:14px;line-height:1.8}
+.empty-state .icon{font-size:36px;margin-bottom:12px;opacity:.4}
+
+@media(max-width:768px){
+  .charts-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .plat-metrics{grid-template-columns:1fr 1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+}
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+  <div>
+    <div class="logo">Portfolio <span>Tracker</span> <span style="font-size:11px;color:var(--text3);font-weight:400">v2</span></div>
+    <div class="last-upd" id="last-upd">Δεν έχει γίνει ανανέωση</div>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-sm" onclick="exportJSON()">↓ JSON</button>
+    <button class="btn btn-sm" onclick="importJSON()">↑ JSON</button>
+    <button class="btn btn-sm" onclick="importXLSX()" style="background:rgba(29,184,122,.1);border-color:var(--green);color:var(--green)">↑ Excel/CSV</button>
+    <input type="file" id="import-file" accept=".json" style="display:none" onchange="loadImport(event)">
+    <input type="file" id="import-xlsx" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadXLSX(event)">
+    <button class="btn btn-sm" onclick="refreshPrices()">↻ Τιμές</button>
+    <button class="btn btn-primary" onclick="openModal('pos')">+ Προσθήκη θέσης</button>
+  </div>
+</header>
+
+<!-- METRICS -->
+<div class="metrics" id="metrics-bar">
+  <div class="metric"><div class="metric-icon">💼</div><div class="metric-label">Συνολική Αξία</div><div class="metric-val" id="m-total">€0</div></div>
+  <div class="metric"><div class="metric-icon">💳</div><div class="metric-label">Κεφάλαιο από τσέπη</div><div class="metric-val" id="m-deposits">€0</div><div class="metric-sub">καταθέσεις</div></div>
+  <div class="metric"><div class="metric-icon">📈</div><div class="metric-label">Κέρδος / Ζημία</div><div class="metric-val" id="m-pnl">€0</div><div class="metric-sub" id="m-pnl-pct"></div></div>
+  <div class="metric"><div class="metric-icon">⏱</div><div class="metric-label">TWR Απόδοση</div><div class="metric-val" id="m-twr">—</div><div class="metric-sub">χρον. σταθμισμένη</div></div>
+  <div class="metric"><div class="metric-icon">📅</div><div class="metric-label">Σημερινή Μεταβολή</div><div class="metric-val" id="m-day">€0</div><div class="metric-sub" id="m-day-pct"></div></div>
+  <div class="metric"><div class="metric-icon">💰</div><div class="metric-label">Μερίσματα (YTD)</div><div class="metric-val" id="m-div">€0</div><div class="metric-sub">φέτος</div></div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('holdings',this)">Θέσεις</button>
+  <button class="tab" onclick="switchTab('performance',this)">Απόδοση</button>
+  <button class="tab" onclick="switchTab('allocation',this)">Κατανομή</button>
+  <button class="tab" onclick="switchTab('dividends',this)">Μερίσματα</button>
+  <button class="tab" onclick="switchTab('platforms',this)">Πλατφόρμες</button>
+  <button class="tab" onclick="switchTab('deposits',this)">Κεφάλαιο</button>
+</div>
+
+<!-- HOLDINGS -->
+<div class="panel active" id="panel-holdings">
+  <div class="toolbar">
+    <div class="filt-bar">
+      <button class="filt active" onclick="setFilter('all',this)">Όλα</button>
+      <button class="filt" onclick="setFilter('stock',this)">Μετοχές</button>
+      <button class="filt" onclick="setFilter('etf',this)">ETF</button>
+      <button class="filt" onclick="setFilter('crypto',this)">Crypto</button>
+      <button class="filt" onclick="setFilter('option',this)">Options</button>
+      <label class="merge-toggle">
+        <input type="checkbox" id="merge-toggle" onchange="renderTable()">
+        <span>Συγχώνευση tickers</span>
+      </label>
+    </div>
+    <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:6px">
+      <button class="btn btn-sm" onclick="exportCSV()">↓ CSV</button>
+      <button class="btn btn-sm" onclick="exportTemplate()" title="Κατέβασε πρότυπο Excel για εισαγωγή" style="background:rgba(167,139,250,.1);border-color:var(--purple);color:var(--purple)">↓ Template</button>
+    </div>
+    </div>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('sym')">Σύμβολο ↕</th>
+          <th>Τύπος</th>
+          <th>Πλατφόρμα</th>
+          <th onclick="sortBy('qty')" style="text-align:right">Τεμάχια ↕</th>
+          <th style="text-align:right">Τιμή Αγοράς</th>
+          <th style="text-align:right">Τρέχουσα</th>
+          <th onclick="sortBy('value')" style="text-align:right">Αξία ↕</th>
+          <th onclick="sortBy('pnl')" style="text-align:right">P/L €</th>
+          <th style="text-align:right">P/L %</th>
+          <th style="text-align:right">Ημέρα %</th>
+          <th>Αγορά</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="holdings-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PERFORMANCE -->
+<div class="panel" id="panel-performance">
+  <div class="perf-chart-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div class="chart-title">Εξέλιξη Χαρτοφυλακίου</div>
+      <div class="perf-controls">
+        <button class="perf-btn active" onclick="setPerfPeriod('1M',this)">1Μ</button>
+        <button class="perf-btn" onclick="setPerfPeriod('3M',this)">3Μ</button>
+        <button class="perf-btn" onclick="setPerfPeriod('6M',this)">6Μ</button>
+        <button class="perf-btn" onclick="setPerfPeriod('1Y',this)">1Χ</button>
+        <button class="perf-btn" onclick="setPerfPeriod('ALL',this)">Όλα</button>
+      </div>
+    </div>
+    <div style="position:relative;height:280px"><canvas id="chart-perf"></canvas></div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-box">
+      <div class="chart-title">P/L ανά Θέση</div>
+      <div id="pnl-wrap" style="position:relative;height:250px"><canvas id="chart-pnl"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Απόδοση ανά Τύπο</div>
+      <div id="legend-type" class="legend"></div>
+      <div style="position:relative;height:200px"><canvas id="chart-type"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- ALLOCATION -->
+<div class="panel" id="panel-allocation">
+  <div class="alloc-grid">
+    <div class="chart-box">
+      <div class="chart-title">Ανά Τύπο</div>
+      <div id="alloc-type"></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Ανά Πλατφόρμα</div>
+      <div id="alloc-plat"></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Top Θέσεις</div>
+      <div id="alloc-ticker"></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Ανά Sector</div>
+      <div id="alloc-sector"></div>
+    </div>
+  </div>
+  <div class="charts-grid">
+    <div class="chart-box">
+      <div class="chart-title">Κατανομή Τύπου (Γράφημα)</div>
+      <div id="legend-alloc-type" class="legend"></div>
+      <div style="position:relative;height:200px"><canvas id="chart-alloc-type"></canvas></div>
+    </div>
+    <div class="chart-box">
+      <div class="chart-title">Κατανομή Πλατφόρμας (Γράφημα)</div>
+      <div id="legend-alloc-plat" class="legend"></div>
+      <div style="position:relative;height:200px"><canvas id="chart-alloc-plat"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<!-- DIVIDENDS -->
+<div class="panel" id="panel-dividends">
+  <div class="div-grid">
+    <div class="div-card"><label>Συνολικά εισπραχθέντα</label><div class="val up" id="div-total">€0</div></div>
+    <div class="div-card"><label>Φέτος (YTD)</label><div class="val up" id="div-ytd">€0</div></div>
+    <div class="div-card"><label>Πρόβλεψη επόμενου έτους</label><div class="val" id="div-forecast">€0</div></div>
+    <div class="div-card"><label>Μέση μηνιαία εισροή</label><div class="val" id="div-monthly">€0</div></div>
+  </div>
+  <div class="deposit-section">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600">+ Καταχώρηση Μερίσματος</div>
+      <button class="btn btn-sm" onclick="importEtoroDivs()" style="background:rgba(74,158,255,.1);border-color:var(--blue);color:var(--blue)">eToro Excel</button>
+      <input type="file" id="etoro-div-file" accept=".xlsx,.xls" style="display:none" onchange="loadEtoroDivs(event)">
+    </div>
+    <div class="div-add-bar">
+      <input id="div-sym" placeholder="Σύμβολο (META)" style="flex:1;min-width:120px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+      <input id="div-amt" type="number" placeholder="Ποσό EUR" style="width:130px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+      <input id="div-date" type="date" style="width:150px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+      <button class="btn btn-green btn-sm" onclick="addDividend()">+ Προσθήκη</button>
+    </div>
+  </div>
+  <div class="div-table-wrap">
+    <table>
+      <thead><tr><th>Ημερομηνία</th><th>Σύμβολο</th><th style="text-align:right">Ποσό</th><th></th></tr></thead>
+      <tbody id="div-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- PLATFORMS -->
+<div class="panel" id="panel-platforms">
+  <div id="platform-cards"></div>
+</div>
+
+<!-- DEPOSITS / ΚΕΦΑΛΑΙΟ -->
+<div class="panel" id="panel-deposits">
+  <div class="deposit-section">
+    <div style="font-size:15px;font-weight:700;margin-bottom:4px">Κεφάλαιο από την τσέπη σου</div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:14px">Κατέγραψε κάθε κατάθεση που έκανες σε οποιαδήποτε πλατφόρμα. Αυτό δείχνει το πραγματικό σου κεφάλαιο.</div>
+    <div class="div-add-bar">
+      <input id="dep-plat" placeholder="Πλατφόρμα (eToro)" style="flex:1;min-width:120px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+      <input id="dep-amt" type="number" placeholder="Ποσό EUR" style="width:130px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+      <input id="dep-date" type="date" style="width:150px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+      <input id="dep-note" placeholder="Σχόλια" style="flex:1;min-width:100px;padding:7px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius);color:var(--text);font-size:13px">
+      <button class="btn btn-green btn-sm" onclick="addDeposit()">+ Κατάθεση</button>
+    </div>
+  </div>
+  <div class="div-grid" style="margin-bottom:16px">
+    <div class="div-card"><label>Συνολικές Καταθέσεις</label><div class="val" id="dep-total-val">€0</div></div>
+    <div class="div-card"><label>Τρέχουσα Αξία</label><div class="val" id="dep-cur-val">€0</div></div>
+    <div class="div-card"><label>Καθαρό Κέρδος</label><div class="val" id="dep-pnl-val">€0</div></div>
+    <div class="div-card"><label>Απόδοση επί κεφαλαίου</label><div class="val" id="dep-roi-val">—</div></div>
+  </div>
+  <div class="div-table-wrap">
+    <table>
+      <thead><tr><th>Ημερομηνία</th><th>Πλατφόρμα</th><th style="text-align:right">Ποσό</th><th>Σχόλια</th><th></th></tr></thead>
+      <tbody id="dep-body"></tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<!-- MODAL ΘΕΣΗ -->
+<div class="modal-overlay" id="modal-pos" onclick="if(event.target===this)closeModal('modal-pos')">
+  <div class="modal">
+    <h3>Προσθήκη θέσης <span onclick="closeModal('modal-pos')" style="cursor:pointer;color:var(--text3);font-weight:400;font-size:20px">×</span></h3>
+    <div class="form-grid">
+      <div class="form-row"><label>Σύμβολο</label><input id="f-sym" placeholder="META, AAPL, BTC..." oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="form-row"><label>Τύπος</label>
+        <select id="f-type" onchange="toggleOptFields()">
+          <option value="stock">Μετοχή</option>
+          <option value="etf">ETF</option>
+          <option value="crypto">Crypto</option>
+          <option value="option">Option</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Πλατφόρμα</label><input id="f-plat" placeholder="Freedom24, eToro..."></div>
+      <div class="form-row"><label>Τεμάχια</label><input id="f-qty" type="number" placeholder="10" min="0" step="any"></div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Τιμή Αγοράς</label><input id="f-cost" type="number" placeholder="250.00" min="0" step="any"></div>
+      <div class="form-row"><label>Νόμισμα</label>
+        <select id="f-cur">
+          <option value="EUR">EUR €</option>
+          <option value="USD">USD $</option>
+        </select>
+      </div>
+    </div>
+    <div id="opt-fields" style="display:none">
+      <div class="opt-fields">
+        <div class="opt-fields-title">🎯 Στοιχεία Option</div>
+        <div class="form-grid">
+          <div class="form-row"><label>Τύπος Option</label>
+            <select id="f-opttype"><option value="CALL">CALL</option><option value="PUT">PUT</option></select>
+          </div>
+          <div class="form-row"><label>Strike Price</label><input id="f-strike" type="number" placeholder="60.00" min="0" step="any"></div>
+        </div>
+        <div class="form-row"><label>Ημ/νία Λήξης</label><input id="f-expiry" type="date"></div>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-row"><label>Ημ/νία Αγοράς</label><input id="f-date" type="date"></div>
+      <div class="form-row"><label>Sector</label><input id="f-sector" placeholder="Technology..."></div>
+    </div>
+    <div class="form-row"><label>Σημειώσεις</label><input id="f-note" placeholder="DCA, 2η αγορά..."></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal('modal-pos')">Ακύρωση</button>
+      <button class="btn btn-primary" onclick="addPosition()">Προσθήκη</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const EUR_USD = 1.08;
+const COLORS = ['#4a9eff','#1db87a','#f5a623','#e05050','#a78bfa','#2dd4bf','#f472b6','#60a5fa','#34d399','#fbbf24','#f87171','#c084fc','#fb923c','#a3e635'];
+const TYPE_COLORS = {stock:'#4a9eff',etf:'#1db87a',crypto:'#f5a623',option:'#f472b6'};
+const TYPE_LABELS = {stock:'Μετοχές',etf:'ETF',crypto:'Crypto',option:'Options'};
+
+// DATA
+let positions = JSON.parse(localStorage.getItem('pf_v2_pos') || '[]');
+let dividends = JSON.parse(localStorage.getItem('pf_v2_div') || '[]');
+let deposits  = JSON.parse(localStorage.getItem('pf_v2_dep') || '[]');
+let snapshots = JSON.parse(localStorage.getItem('pf_v2_snap') || '[]'); // [{date,value}]
+let prices = {};
+let charts = {};
+let currentFilter = 'all';
+let sortKey = 'value';
+let sortDir = -1;
+let perfPeriod = '1M';
+
+function save(){
+  localStorage.setItem('pf_v2_pos', JSON.stringify(positions));
+  localStorage.setItem('pf_v2_div', JSON.stringify(dividends));
+  localStorage.setItem('pf_v2_dep', JSON.stringify(deposits));
+  localStorage.setItem('pf_v2_snap', JSON.stringify(snapshots));
+}
+
+function toEur(val, cur){ return cur==='USD' ? val/EUR_USD : val; }
+function fmt(v,d=0){ return '€'+Math.abs(v).toLocaleString('el-GR',{minimumFractionDigits:d,maximumFractionDigits:d||2}); }
+function fmtPct(v){ return (v>=0?'+':'')+v.toFixed(2)+'%'; }
+
+// TABS
+function switchTab(id, btn){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+  if(id==='performance') updatePerformance();
+  if(id==='allocation') updateAllocation();
+  if(id==='platforms') updatePlatforms();
+  if(id==='dividends') renderDividends();
+  if(id==='deposits') renderDeposits();
+}
+
+// FILTER & SORT
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filt').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+function sortBy(key){ if(sortKey===key)sortDir*=-1; else{sortKey=key;sortDir=-1;} renderTable(); }
+
+// MODAL
+function openModal(id){ document.getElementById('modal-'+id).classList.add('open'); }
+function closeModal(id){ document.getElementById('modal-'+id).classList.remove('open'); }
+function toggleOptFields(){
+  const isOpt = document.getElementById('f-type').value==='option';
+  document.getElementById('opt-fields').style.display = isOpt ? 'block' : 'none';
+}
+
+// ADD POSITION
+function addPosition(){
+  const sym = document.getElementById('f-sym').value.trim().toUpperCase();
+  const type = document.getElementById('f-type').value;
+  const plat = document.getElementById('f-plat').value.trim()||'Άλλη';
+  const qty = parseFloat(document.getElementById('f-qty').value);
+  const cost = parseFloat(document.getElementById('f-cost').value);
+  const cur = document.getElementById('f-cur').value;
+  const date = document.getElementById('f-date').value;
+  const note = document.getElementById('f-note').value.trim();
+  const sector = document.getElementById('f-sector').value.trim();
+  if(!sym||isNaN(qty)||isNaN(cost)){ alert('Συμπληρώστε: Σύμβολο, Τεμάχια, Τιμή'); return; }
+  const costEur = cur==='USD' ? cost/EUR_USD : cost;
+  const opttype = document.getElementById('f-opttype').value;
+  const strike = parseFloat(document.getElementById('f-strike').value)||null;
+  const expiry = document.getElementById('f-expiry').value||'';
+  positions.push({
+    id:Date.now(), sym, type, plat, qty, cost, costEur, cur, date, note, sector,
+    opttype: type==='option'?opttype:'',
+    strike: type==='option'?strike:null,
+    expiry: type==='option'?expiry:''
+  });
+  save();
+  ['f-sym','f-qty','f-cost','f-note','f-sector','f-strike','f-expiry'].forEach(id=>document.getElementById(id).value='');
+  closeModal('modal-pos');
+  fetchPricesFor([sym]);
+}
+
+function deletePos(id){
+  if(!confirm('Διαγραφή θέσης;')) return;
+  positions=positions.filter(p=>p.id!==id);
+  save(); renderAll();
+}
+
+// PRICES
+async function fetchPricesFor(syms){
+  for(const sym of syms){
+    try{
+      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${sym}?interval=1d&range=2d`);
+      const j = await r.json();
+      const q = j?.chart?.result?.[0];
+      if(!q) continue;
+      const meta = q.meta;
+      const closes = q.indicators?.quote?.[0]?.close||[];
+      const prev = closes.length>=2 ? closes[closes.length-2] : meta.previousClose||meta.regularMarketPrice;
+      prices[sym] = {
+        price: meta.regularMarketPrice||meta.chartPreviousClose||0,
+        prev: prev||meta.regularMarketPrice||0,
+        currency: meta.currency||'USD'
+      };
+    }catch(e){ console.warn('Price fetch failed:',sym); }
+  }
+  const now = new Date().toLocaleString('el-GR');
+  document.getElementById('last-upd').textContent = 'Ανανέωση: '+now;
+  renderAll();
+  saveSnapshot();
+}
+
+async function refreshPrices(){
+  const syms=[...new Set(positions.map(p=>p.sym))];
+  if(!syms.length){ alert('Δεν υπάρχουν θέσεις'); return; }
+  document.getElementById('last-upd').textContent = 'Φόρτωση τιμών...';
+  await fetchPricesFor(syms);
+}
+
+function saveSnapshot(){
+  const total = getTotalValue();
+  if(!total) return;
+  const today = new Date().toISOString().slice(0,10);
+  const idx = snapshots.findIndex(s=>s.date===today);
+  if(idx>=0) snapshots[idx].value=total;
+  else snapshots.push({date:today,value:total});
+  snapshots.sort((a,b)=>a.date.localeCompare(b.date));
+  save();
+}
+
+function getTotalValue(){
+  return positions.reduce((s,p)=>{
+    const pi=prices[p.sym]; const priceCur=pi?.currency||'USD';
+    const priceEur=pi?toEur(pi.price,priceCur):null;
+    return s+(priceEur?priceEur*p.qty:p.costEur*p.qty);
+  },0);
+}
+
+// RENDER ALL
+function renderAll(){ renderTable(); updateMetrics(); }
+
+// METRICS
+function updateMetrics(){
+  let total=0,cost=0,day=0,dayBase=0;
+  positions.forEach(p=>{
+    const pi=prices[p.sym]; const priceCur=pi?.currency||'USD';
+    const priceEur=pi?toEur(pi.price,priceCur):null;
+    const prevEur=pi?toEur(pi.prev,priceCur):null;
+    const v=priceEur?priceEur*p.qty:p.costEur*p.qty;
+    total+=v; cost+=p.costEur*p.qty;
+    if(priceEur&&prevEur){day+=(priceEur-prevEur)*p.qty;dayBase+=prevEur*p.qty;}
+  });
+  const pnl=total-cost;
+  const pnlPct=cost?pnl/cost*100:0;
+  const dayPct=dayBase?day/dayBase*100:0;
+  document.getElementById('m-total').textContent=fmt(total);
+  const pnlEl=document.getElementById('m-pnl');
+  pnlEl.textContent=(pnl>=0?'+':'')+fmt(pnl);
+  pnlEl.className='metric-val '+(pnl>=0?'up':'down');
+  document.getElementById('m-pnl-pct').textContent=fmtPct(pnlPct);
+  document.getElementById('m-pnl-pct').className='metric-sub '+(pnl>=0?'up':'down');
+  const dayEl=document.getElementById('m-day');
+  dayEl.textContent=(day>=0?'+':'')+fmt(day);
+  dayEl.className='metric-val '+(day>=0?'up':'down');
+  document.getElementById('m-day-pct').textContent=fmtPct(dayPct);
+  document.getElementById('m-day-pct').className='metric-sub '+(day>=0?'up':'down');
+  // Deposits
+  const totalDep=deposits.reduce((s,d)=>s+d.amount,0);
+  document.getElementById('m-deposits').textContent=fmt(totalDep);
+  // TWR calculation
+  const twr=calcTWR(totalDep,total);
+  const twrEl=document.getElementById('m-twr');
+  twrEl.textContent=twr!==null?fmtPct(twr):'—';
+  twrEl.className='metric-val '+(twr===null?'neutral':twr>=0?'up':'down');
+  // YTD Dividends
+  const ytd=new Date().getFullYear()+'';
+  const divYtd=dividends.filter(d=>d.date&&d.date.startsWith(ytd)).reduce((s,d)=>s+d.amount,0);
+  document.getElementById('m-div').textContent=fmt(divYtd);
+}
+
+function calcTWR(totalDeposits, currentValue){
+  if(!totalDeposits||!currentValue) return null;
+  return (currentValue-totalDeposits)/totalDeposits*100;
+}
+
+// RENDER TABLE
+function renderTable(){
+  const body=document.getElementById('holdings-body');
+  let rows=positions.filter(p=>currentFilter==='all'||p.type===currentFilter);
+  if(!rows.length){
+    body.innerHTML=`<tr><td colspan="12"><div class="empty-state"><div class="icon">📊</div>Δεν βρέθηκαν θέσεις.<br>Πατήστε «Προσθήκη θέσης».</div></td></tr>`;
+    return;
+  }
+  const merge=document.getElementById('merge-toggle')?.checked;
+  if(merge){
+    const m={};
+    rows.forEach(p=>{
+      const k=p.sym+'|'+p.type;
+      if(!m[k]){m[k]={...p,qty:0,totalCostEur:0,plats:[],ids:[]};}
+      m[k].totalCostEur+=p.qty*p.costEur;
+      m[k].qty+=p.qty;
+      m[k].plats.push(p.plat);
+      m[k].ids.push(p.id);
+    });
+    Object.values(m).forEach(p=>{p.costEur=p.qty?p.totalCostEur/p.qty:0;p.plat=p.plats.join(', ');});
+    rows=Object.values(m);
+  }
+  // Sort
+  rows.sort((a,b)=>{
+    let av,bv;
+    if(sortKey==='sym'){av=a.sym;bv=b.sym;return av.localeCompare(bv)*sortDir;}
+    if(sortKey==='qty'){av=a.qty;bv=b.qty;}
+    else{
+      const calcV=p=>{const pi=prices[p.sym];const pc=pi?.currency||'USD';const pr=pi?toEur(pi.price,pc):null;return pr?pr*p.qty:p.costEur*p.qty;};
+      const calcPnl=p=>{const pi=prices[p.sym];const pc=pi?.currency||'USD';const pr=pi?toEur(pi.price,pc):null;const v=pr?pr*p.qty:null;return v?v-p.costEur*p.qty:0;};
+      if(sortKey==='value'){av=calcV(a);bv=calcV(b);}
+      else if(sortKey==='pnl'){av=calcPnl(a);bv=calcPnl(b);}
+      else{av=a[sortKey]||0;bv=b[sortKey]||0;}
+    }
+    return (av-bv)*sortDir;
+  });
+
+  const today=new Date();
+  body.innerHTML=rows.map(p=>{
+    const pi=prices[p.sym]; const priceCur=pi?.currency||'USD';
+    const priceEur=pi?toEur(pi.price,priceCur):null;
+    const prevEur=pi?toEur(pi.prev,priceCur):null;
+    const value=priceEur?priceEur*p.qty:null;
+    const costTotal=p.costEur*p.qty;
+    const pnl=value?value-costTotal:null;
+    const pnlPct=pnl!=null&&costTotal?pnl/costTotal*100:null;
+    const dayChg=priceEur&&prevEur&&prevEur!==0?(priceEur-prevEur)/prevEur*100:null;
+    const badge=`<span class="badge badge-${p.type}">${TYPE_LABELS[p.type]||p.type}</span>`;
+    const dateStr=p.date?new Date(p.date+'T00:00:00').toLocaleDateString('el-GR'):'—';
+    // Option info
+    let optInfo='';
+    if(p.type==='option'){
+      optInfo+=p.opttype?` <span class="badge badge-${p.opttype.toLowerCase()}">${p.opttype}</span>`:'';
+      if(p.strike) optInfo+=`<div class="note-text">Strike: $${p.strike}</div>`;
+      if(p.expiry){
+        const exp=new Date(p.expiry);
+        const daysLeft=Math.ceil((exp-today)/(1000*60*60*24));
+        const cls=daysLeft<0?'expiry-expired':daysLeft<30?'expiry-warn':'expiry-ok';
+        const label=daysLeft<0?'Έληξε':daysLeft===0?'Σήμερα!':daysLeft+' ημ.';
+        optInfo+=`<div class="note-text"><span class="expiry-badge ${cls}">Λήξη: ${new Date(p.expiry+'T00:00:00').toLocaleDateString('el-GR')} (${label})</span></div>`;
+      }
+    }
+    return `<tr>
+      <td><div class="sym">${p.sym}${optInfo}</div>${p.note?`<div class="note-text">${p.note}</div>`:''}</td>
+      <td>${badge}</td>
+      <td><span class="plat-tag">${p.plat}</span></td>
+      <td style="text-align:right">${p.qty.toLocaleString('el-GR',{maximumFractionDigits:4})}</td>
+      <td style="text-align:right">${fmt(p.costEur,2)}</td>
+      <td style="text-align:right">${priceEur?fmt(priceEur,2):'<span style="color:var(--text3);font-size:11px">—</span>'}</td>
+      <td style="text-align:right"><strong>${value?fmt(value):'—'}</strong></td>
+      <td style="text-align:right" class="${pnl==null?'neutral':pnl>=0?'up':'down'}">${pnl!=null?(pnl>=0?'+':'')+fmt(pnl):'—'}</td>
+      <td style="text-align:right" class="${pnlPct==null?'neutral':pnlPct>=0?'up':'down'}">${pnlPct!=null?fmtPct(pnlPct):'—'}</td>
+      <td style="text-align:right" class="${dayChg==null?'neutral':dayChg>=0?'up':'down'}">${dayChg!=null?fmtPct(dayChg):'—'}</td>
+      <td style="font-size:11px;color:var(--text3)">${dateStr}</td>
+      <td><button class="btn btn-danger" onclick="deletePos(${p.id})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+// PERFORMANCE
+function setPerfPeriod(p,btn){
+  perfPeriod=p;
+  document.querySelectorAll('.perf-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  updatePerformance();
+}
+
+function destroyChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function updatePerformance(){
+  // Performance chart from snapshots
+  let snaps=[...snapshots];
+  const now=new Date();
+  if(perfPeriod!=='ALL'){
+    const months={'1M':1,'3M':3,'6M':6,'1Y':12};
+    const cutoff=new Date(now);
+    cutoff.setMonth(cutoff.getMonth()-(months[perfPeriod]||1));
+    snaps=snaps.filter(s=>new Date(s.date)>=cutoff);
+  }
+  destroyChart('perf');
+  if(snaps.length>1){
+    const labels=snaps.map(s=>new Date(s.date+'T00:00:00').toLocaleDateString('el-GR',{day:'2-digit',month:'2-digit'}));
+    const vals=snaps.map(s=>s.value);
+    const first=vals[0]||1;
+    const gradient=document.getElementById('chart-perf').getContext('2d');
+    const grad=gradient.createLinearGradient(0,0,0,280);
+    grad.addColorStop(0,'rgba(74,158,255,0.3)');
+    grad.addColorStop(1,'rgba(74,158,255,0)');
+    charts['perf']=new Chart(document.getElementById('chart-perf'),{
+      type:'line',
+      data:{labels,datasets:[{data:vals,borderColor:'#4a9eff',backgroundColor:grad,borderWidth:2,pointRadius:snaps.length<=30?3:0,fill:true,tension:0.3}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>'€'+Math.round(ctx.raw).toLocaleString()+' ('+(((ctx.raw-first)/first)*100).toFixed(1)+'%)'}}},scales:{x:{ticks:{color:'#8892b0',maxTicksLimit:8},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#8892b0',callback:v=>'€'+Math.round(v).toLocaleString()},grid:{color:'rgba(255,255,255,.04)'}}}}
+    });
+  } else {
+    document.getElementById('chart-perf').parentElement.innerHTML='<div class="empty-state" style="padding:20px"><div class="icon">📈</div>Χρειάζονται δεδομένα πολλών ημερών.<br>Ανανέωσε τιμές κάθε μέρα.</div>';
+  }
+  // P&L bar
+  const pnlData=positions.map(p=>{
+    const pi=prices[p.sym];const priceCur=pi?.currency||'USD';
+    const priceEur=pi?toEur(pi.price,priceCur):null;
+    const v=priceEur?priceEur*p.qty:null;
+    return{label:p.sym+(p.plat?'\n'+p.plat:''),val:v?v-p.costEur*p.qty:0};
+  }).sort((a,b)=>b.val-a.val);
+  destroyChart('pnl');
+  if(pnlData.length){
+    document.getElementById('pnl-wrap').style.height=Math.max(200,pnlData.length*32+60)+'px';
+    charts['pnl']=new Chart(document.getElementById('chart-pnl'),{
+      type:'bar',
+      data:{labels:pnlData.map(d=>d.label.split('\n')[0]),datasets:[{data:pnlData.map(d=>d.val),backgroundColor:pnlData.map(d=>d.val>=0?'rgba(29,184,122,.7)':'rgba(224,80,80,.7)'),borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>(ctx.raw>=0?'+':'')+'€'+Math.round(ctx.raw).toLocaleString()}}},scales:{x:{ticks:{color:'#8892b0',callback:v=>(v>=0?'+':'')+'€'+Math.round(v)},grid:{color:'rgba(255,255,255,.04)'}},y:{ticks:{color:'#8892b0',font:{size:11}},grid:{display:false}}}}
+    });
+  }
+  // Type performance
+  const typeMap={};
+  positions.forEach(p=>{
+    const pi=prices[p.sym];const priceCur=pi?.currency||'USD';
+    const priceEur=pi?toEur(pi.price,priceCur):null;
+    const v=priceEur?priceEur*p.qty:p.costEur*p.qty;
+    typeMap[p.type]=(typeMap[p.type]||0)+v;
+  });
+  destroyChart('type');
+  const tKeys=Object.keys(typeMap),tVals=tKeys.map(k=>typeMap[k]),tColors=tKeys.map(k=>TYPE_COLORS[k]||'#888');
+  const legType=document.getElementById('legend-type');
+  legType.innerHTML=tKeys.map((k,i)=>`<span><span class="leg-dot" style="background:${tColors[i]}"></span>${TYPE_LABELS[k]} — ${fmt(typeMap[k])}</span>`).join('');
+  charts['type']=new Chart(document.getElementById('chart-type'),{
+    type:'doughnut',
+    data:{labels:tKeys.map(k=>TYPE_LABELS[k]),datasets:[{data:tVals,backgroundColor:tColors,borderColor:'#0f1117',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: €${Math.round(ctx.raw).toLocaleString()}`}}}}
+  });
+}
+
+// ALLOCATION
+function makeAllocRows(map, containerId, colorArr){
+  const total=Object.values(map).reduce((s,v)=>s+v,0);
+  const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]);
+  const el=document.getElementById(containerId);
+  if(!sorted.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;padding:8px">Δεν υπάρχουν δεδομένα</div>';return;}
+  el.innerHTML=sorted.map(([k,v],i)=>`
+    <div class="alloc-row">
+      <div class="alloc-label" style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:2px;background:${colorArr[i%colorArr.length]};display:inline-block"></span>${k}</div>
+      <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:${(v/total*100).toFixed(1)}%;background:${colorArr[i%colorArr.length]}"></div></div>
+      <div class="alloc-pct">${(v/total*100).toFixed(1)}%</div>
+      <div class="alloc-val">${fmt(v)}</div>
+    </div>`).join('');
+}
+
+function updateAllocation(){
+  const typeMap={},platMap={},tickerMap={},sectorMap={};
+  positions.forEach(p=>{
+    const pi=prices[p.sym];const priceCur=pi?.currency||'USD';
+    const priceEur=pi?toEur(pi.price,priceCur):null;
+    const v=priceEur?priceEur*p.qty:p.costEur*p.qty;
+    const tLabel=TYPE_LABELS[p.type]||p.type;
+    typeMap[tLabel]=(typeMap[tLabel]||0)+v;
+    platMap[p.plat]=(platMap[p.plat]||0)+v;
+    tickerMap[p.sym]=(tickerMap[p.sym]||0)+v;
+    const sec=p.sector||'Allo';
+    sectorMap[sec]=(sectorMap[sec]||0)+v;
+  });
+  makeAllocRows(typeMap,'alloc-type',['#4a9eff','#1db87a','#f5a623','#f472b6']);
+  makeAllocRows(platMap,'alloc-plat',COLORS);
+  makeAllocRows(tickerMap,'alloc-ticker',COLORS);
+  makeAllocRows(sectorMap,'alloc-sector',COLORS.slice(4));
+  // Donut charts
+  destroyChart('alloc-type');
+  const tK=Object.keys(typeMap),tV=tK.map(k=>typeMap[k]);
+  const tC=tK.map(k=>TYPE_COLORS[Object.keys(TYPE_LABELS).find(kk=>TYPE_LABELS[kk]===k)]||'#888');
+  document.getElementById('legend-alloc-type').innerHTML=tK.map((k,i)=>`<span><span class="leg-dot" style="background:${tC[i]}"></span>${k}</span>`).join('');
+  charts['alloc-type']=new Chart(document.getElementById('chart-alloc-type'),{type:'doughnut',data:{labels:tK,datasets:[{data:tV,backgroundColor:tC,borderColor:'#0f1117',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${(ctx.raw/(tV.reduce((a,b)=>a+b,0))*100).toFixed(1)}%`}}}}});
+  destroyChart('alloc-plat');
+  const pK=Object.keys(platMap),pV=pK.map(k=>platMap[k]),pC=pK.map((_,i)=>COLORS[(i+4)%COLORS.length]);
+  document.getElementById('legend-alloc-plat').innerHTML=pK.map((k,i)=>`<span><span class="leg-dot" style="background:${pC[i]}"></span>${k}</span>`).join('');
+  charts['alloc-plat']=new Chart(document.getElementById('chart-alloc-plat'),{type:'doughnut',data:{labels:pK,datasets:[{data:pV,backgroundColor:pC,borderColor:'#0f1117',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>`${ctx.label}: ${(ctx.raw/(pV.reduce((a,b)=>a+b,0))*100).toFixed(1)}%`}}}}});
+}
+
+// DIVIDENDS
+function addDividend(){
+  const sym=document.getElementById('div-sym').value.trim().toUpperCase();
+  const amt=parseFloat(document.getElementById('div-amt').value);
+  const date=document.getElementById('div-date').value;
+  if(!sym||isNaN(amt)||!date){ alert('Please fill all fields'); return; }
+  dividends.push({id:Date.now(),sym,amount:amt,date});
+  dividends.sort((a,b)=>b.date.localeCompare(a.date));
+  save(); renderDividends(); updateMetrics();
+  ['div-sym','div-amt','div-date'].forEach(id=>document.getElementById(id).value='');
+}
+
+function deleteDividend(id){
+  dividends=dividends.filter(d=>d.id!==id);
+  save(); renderDividends(); updateMetrics();
+}
+
+function renderDividends(){
+  const total=dividends.reduce((s,d)=>s+d.amount,0);
+  const ytdStr=new Date().getFullYear()+'';
+  const ytd=dividends.filter(d=>d.date&&d.date.startsWith(ytdStr)).reduce((s,d)=>s+d.amount,0);
+  const months=dividends.length>0?(new Date()-new Date(dividends[dividends.length-1].date))/(1000*60*60*24*30):1;
+  const monthly=months>0?total/Math.max(1,months):0;
+  const forecast=monthly*12;
+  document.getElementById('div-total').textContent=fmt(total);
+  document.getElementById('div-ytd').textContent=fmt(ytd);
+  document.getElementById('div-forecast').textContent=fmt(forecast);
+  document.getElementById('div-monthly').textContent=fmt(monthly)+'/μήνα';
+  const body=document.getElementById('div-body');
+  if(!dividends.length){body.innerHTML='<tr><td colspan="4"><div class="empty-state" style="padding:20px"><div class="icon">💰</div>Δεν υπάρχουν μερίσματα ακόμα.</div></td></tr>';return;}
+  body.innerHTML=dividends.map(d=>`<tr>
+    <td style="color:var(--text2);font-size:12px">${new Date(d.date+'T00:00:00').toLocaleDateString('el-GR')}</td>
+    <td><strong>${d.sym}</strong></td>
+    <td style="text-align:right;color:var(--green)">+${fmt(d.amount)}</td>
+    <td><button class="btn btn-danger" onclick="deleteDividend(${d.id})">✕</button></td>
+  </tr>`).join('');
+}
+
+// DEPOSITS
+function addDeposit(){
+  const plat=document.getElementById('dep-plat').value.trim()||'Άλλη';
+  const amt=parseFloat(document.getElementById('dep-amt').value);
+  const date=document.getElementById('dep-date').value;
+  const note=document.getElementById('dep-note').value.trim();
+  if(isNaN(amt)||!date){ alert('Please fill amount and date'); return; }
+  deposits.push({id:Date.now(),plat,amount:amt,date,note});
+  deposits.sort((a,b)=>b.date.localeCompare(a.date));
+  save(); renderDeposits(); updateMetrics();
+  ['dep-plat','dep-amt','dep-date','dep-note'].forEach(id=>document.getElementById(id).value='');
+}
+
+function deleteDeposit(id){
+  deposits=deposits.filter(d=>d.id!==id);
+  save(); renderDeposits(); updateMetrics();
+}
+
+function renderDeposits(){
+  const totalDep=deposits.reduce((s,d)=>s+d.amount,0);
+  const totalVal=getTotalValue();
+  const pnl=totalVal-totalDep;
+  const roi=totalDep?pnl/totalDep*100:null;
+  document.getElementById('dep-total-val').textContent=fmt(totalDep);
+  document.getElementById('dep-cur-val').textContent=fmt(totalVal);
+  const pnlEl=document.getElementById('dep-pnl-val');
+  pnlEl.textContent=(pnl>=0?'+':'')+fmt(pnl);
+  pnlEl.className='val '+(pnl>=0?'up':'down');
+  const roiEl=document.getElementById('dep-roi-val');
+  roiEl.textContent=roi!==null?fmtPct(roi):'—';
+  roiEl.className='val '+(roi===null?'neutral':roi>=0?'up':'down');
+  const body=document.getElementById('dep-body');
+  if(!deposits.length){body.innerHTML='<tr><td colspan="5"><div class="empty-state" style="padding:20px"><div class="icon">🏦</div>Δεν υπάρχουν καταθέσεις ακόμα.</div></td></tr>';return;}
+  body.innerHTML=deposits.map(d=>`<tr>
+    <td style="color:var(--text2);font-size:12px">${new Date(d.date+'T00:00:00').toLocaleDateString('el-GR')}</td>
+    <td><span class="plat-tag">${d.plat}</span></td>
+    <td style="text-align:right;font-weight:700">+${fmt(d.amount)}</td>
+    <td style="color:var(--text3);font-size:12px">${d.note||''}</td>
+    <td><button class="btn btn-danger" onclick="deleteDeposit(${d.id})">✕</button></td>
+  </tr>`).join('');
+}
+
+// PLATFORMS
+function updatePlatforms(){
+  const wrap=document.getElementById('platform-cards');
+  const platMap={};
+  positions.forEach(p=>{if(!platMap[p.plat])platMap[p.plat]=[];platMap[p.plat].push(p);});
+  if(!Object.keys(platMap).length){wrap.innerHTML='<div class="empty-state"><div class="icon">🏦</div>Δεν υπάρχουν πλατφόρμες.</div>';return;}
+  wrap.innerHTML=Object.entries(platMap).map(([plat,ps])=>{
+    let tv=0,tc=0;
+    ps.forEach(p=>{
+      const pi=prices[p.sym];const priceCur=pi?.currency||'USD';
+      const priceEur=pi?toEur(pi.price,priceCur):null;
+      tv+=priceEur?priceEur*p.qty:p.costEur*p.qty;
+      tc+=p.costEur*p.qty;
+    });
+    const pnl=tv-tc;const pnlPct=tc?pnl/tc*100:0;
+    const platDeps=deposits.filter(d=>d.plat===plat).reduce((s,d)=>s+d.amount,0);
+    return `<div class="platform-card">
+      <h4>${plat} <span style="font-size:13px;color:var(--text2);font-weight:400">${ps.length} θέσεις</span></h4>
+      <div class="plat-metrics">
+        <div class="plat-metric"><label>Τρέχουσα Αξία</label><div class="val">${fmt(tv)}</div></div>
+        <div class="plat-metric"><label>Κόστος Αγοράς</label><div class="val">${fmt(tc)}</div></div>
+        <div class="plat-metric"><label>P&L</label><div class="val ${pnl>=0?'up':'down'}">${pnl>=0?'+':''}${fmt(pnl)}<small style="font-size:12px;margin-left:4px">${fmtPct(pnlPct)}</small></div></div>
+        <div class="plat-metric"><label>Καταθέσεις</label><div class="val">${platDeps?fmt(platDeps):'—'}</div></div>
+      </div>
+      <div class="plat-chips">${ps.map(p=>`<span class="chip">${p.sym}×${p.qty.toLocaleString('el-GR',{maximumFractionDigits:4})}</span>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+// EXPORT / IMPORT
+function exportJSON(){
+  const all={positions,dividends,deposits,snapshots};
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(all,null,2)],{type:'application/json'}));
+  a.download='portfolio-backup.json';a.click();
+}
+function importJSON(){ document.getElementById('import-file').click(); }
+function loadImport(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const d=JSON.parse(ev.target.result);
+      if(d.positions){positions=d.positions;dividends=d.dividends||[];deposits=d.deposits||[];snapshots=d.snapshots||[];}
+      else if(Array.isArray(d)){positions=d;}
+      else throw new Error('Μη έγκυρο αρχείο');
+      save();renderAll();renderDividends();renderDeposits();
+      alert('Εισαγωγή επιτυχής!');
+    }catch(err){alert('Σφάλμα: '+err.message);}
+  };
+  reader.readAsText(file);e.target.value='';
+}
+function exportCSV(){
+  if(!positions.length){alert('Δεν υπάρχουν θέσεις');return;}
+  const h=['Σύμβολο','Τύπος','Πλατφόρμα','Τεμάχια','Τιμή Αγοράς EUR','Νόμισμα','Ημ/νία','Sector','Σημειώσεις','Strike','Λήξη','Option Τύπος'];
+  const r=positions.map(p=>[p.sym,p.type,p.plat,p.qty,p.costEur?.toFixed(4),p.cur,p.date||'',p.sector||'',p.note||'',p.strike||'',p.expiry||'',p.opttype||'']);
+  const csv=[h,...r].map(row=>row.map(c=>`"${c}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='portfolio.csv';a.click();
+}
+
+// XLSX IMPORT
+function importXLSX(){ document.getElementById('import-xlsx').click(); }
+
+function loadXLSX(e){
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      const data = new Uint8Array(ev.target.result);
+      const wb = XLSX.read(data, {type:'array', cellDates:true});
+      const sheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, {defval:''});
+      if(!rows.length){ alert('Den vrethikan dedomena sto archeio.'); return; }
+      
+      // Detect format by column names
+      const keys = Object.keys(rows[0]).map(k=>k.toLowerCase().trim());
+      let imported = [];
+      
+      // XSpot Wealth format
+      if(keys.some(k=>k.includes('ticker')) && keys.some(k=>k.includes('order_direction'))){
+        imported = parseXSpot(rows);
+      }
+      // DEGIRO format
+      else if(keys.some(k=>k.includes('isin')) && keys.some(k=>k.includes('product'))){
+        imported = parseDEGIRO(rows);
+      }
+      // eToro format  
+      else if(keys.some(k=>k.includes('position id')) || keys.some(k=>k.includes('action'))){
+        alert('eToro: Prosthese xeirokinita tis anoixtes theseis sou.');
+        return;
+      }
+      // Generic / custom format
+      else {
+        imported = parseGeneric(rows);
+      }
+      
+      if(!imported.length){ 
+        showXLSXPreview(rows);
+        return; 
+      }
+      
+      const msg = 'Found ' + imported.length + ' positions. Add to existing? (Cancel = replace all)';
+      if(positions.length && confirm(msg)){
+        positions = [...positions, ...imported.filter(n=>!positions.find(p=>p.sym===n.sym&&p.plat===n.plat))];
+      } else {
+        positions = imported;
+      }
+      save(); renderAll();
+      alert('Import successful: ' + imported.length + ' positions added!');
+    }catch(err){ 
+      console.error(err);
+      alert('Error reading file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+function parseXSpot(rows){
+  // Calculate net positions from transaction history
+  var posMap = {};
+  rows.forEach(function(row){
+    var ticker = (row['ticker']||'').replace('.M','').replace('.L','').replace('.PA','').trim();
+    var name = row['instrument_name']||'';
+    var dir = row['order_direction']||'';
+    var qty = parseFloat(row['volume'])||0;
+    var price = parseFloat(row['execution_price'])||0;
+    var cur = (row['currency']||'EUR').toUpperCase();
+    var rawDate = row['execution_time']||'';
+    var date = rawDate instanceof Date ? rawDate.toISOString().slice(0,10) : String(rawDate).slice(0,10);
+    if(!ticker) return;
+    if(!posMap[ticker]) posMap[ticker] = {qty:0,totalCost:0,name:name,cur:cur,lastDate:date};
+    if(dir==='Buy'){
+      posMap[ticker].totalCost += qty * price;
+      posMap[ticker].qty += qty;
+    } else if(dir==='Sell'){
+      // Reduce position proportionally
+      if(posMap[ticker].qty > 0){
+        var ratio = qty / posMap[ticker].qty;
+        posMap[ticker].totalCost *= Math.max(0, 1 - ratio);
+      }
+      posMap[ticker].qty -= qty;
+    }
+    if(date > posMap[ticker].lastDate) posMap[ticker].lastDate = date;
+  });
+  var imported = [];
+  Object.entries(posMap).forEach(function(entry){
+    var sym = entry[0]; var p = entry[1];
+    if(p.qty < 0.001) return; // skip closed positions
+    var avgPrice = p.qty > 0 ? p.totalCost / p.qty : 0;
+    imported.push({
+      id: Date.now() + Math.random(),
+      sym: sym,
+      type: 'etf',
+      plat: 'XSpot Wealth',
+      qty: Math.round(p.qty * 10000) / 10000,
+      cost: avgPrice,
+      costEur: p.cur === 'USD' ? avgPrice / 1.08 : avgPrice,
+      cur: p.cur,
+      date: p.lastDate,
+      note: p.name,
+      sector: 'ETF',
+      opttype: '', strike: null, expiry: ''
+    });
+  });
+  return imported;
+}
+
+function parseDEGIRO(rows){
+  const imported = [];
+  rows.forEach(function(row){
+    const sym = row['Symbol'] || row['Symbool'] || row['Ticker'] || '';
+    const name = row['Product'] || row['Naam'] || '';
+    const qty = parseFloat(row['Quantity'] || row['Hoeveelheid'] || row['Aantal'] || 0);
+    const cost = parseFloat(row['Buy price'] || row['Aankoopkoers'] || row['Close price'] || 0);
+    const cur = row['Currency'] || row['Valuta'] || 'EUR';
+    if(!sym && !name) return;
+    if(isNaN(qty) || qty <= 0) return;
+    imported.push({
+      id: Date.now() + Math.random(),
+      sym: (sym || name.toUpperCase().replace(/\s+/g,'').slice(0,8)),
+      type: 'stock',
+      plat: 'DEGIRO',
+      qty: qty,
+      cost: cost,
+      costEur: cur==='USD' ? cost/EUR_USD : cost,
+      cur: cur,
+      date: '',
+      note: name,
+      sector: '',
+      opttype: '', strike: null, expiry: ''
+    });
+  });
+  return imported;
+}
+
+function parseGeneric(rows){
+  const imported = [];
+  const keyMap = function(row, candidates){
+    for(var c of candidates){
+      const k = Object.keys(row).find(function(k){ return k.toLowerCase().trim().includes(c.toLowerCase()); });
+      if(k && row[k] !== undefined && row[k] !== '') return row[k];
+    }
+    return null;
+  };
+  
+  rows.forEach(function(row){
+    const sym = keyMap(row, ['symbol','sym','ticker','code']);
+    const qty = parseFloat(keyMap(row, ['quantity','qty','units','shares','amount']) || 0);
+    const cost = parseFloat(keyMap(row, ['price','cost','buy price','close price','avg price']) || 0);
+    const type = (keyMap(row, ['type','asset type','instrument type']) || 'stock').toLowerCase();
+    const plat = keyMap(row, ['platform','broker','account','platform']) || 'Εισαγωγή';
+    const cur = (keyMap(row, ['currency','cur','ccy']) || 'EUR').toUpperCase();
+    const date = keyMap(row, ['date','purchase date','open date','buy date']) || '';
+    const note = keyMap(row, ['note','notes','comment','description']) || '';
+    const sector = keyMap(row, ['sector','category','industry']) || '';
+    const strike = parseFloat(keyMap(row, ['strike']) || 0) || null;
+    const expiry = keyMap(row, ['expiry','expiration','λήξη']) || '';
+    const opttype = (keyMap(row, ['opttype','call/put','option type']) || '').toUpperCase();
+    
+    if(!sym || isNaN(qty) || qty <= 0) return;
+    
+    const typeMap = {stock:'stock',μετοχή:'stock',etf:'etf',crypto:'crypto',option:'option',options:'option'};
+    const normalType = typeMap[type] || 'stock';
+    
+    let dateStr = '';
+    if(date){
+      try{
+        const d = date instanceof Date ? date : new Date(date);
+        if(!isNaN(d)) dateStr = d.toISOString().slice(0,10);
+      }catch(e){}
+    }
+    
+    imported.push({
+      id: Date.now() + Math.random(),
+      sym: String(sym).toUpperCase().trim(),
+      type: normalType,
+      plat: String(plat).trim(),
+      qty: qty,
+      cost: cost,
+      costEur: cur==='USD' ? cost/EUR_USD : cost,
+      cur: cur,
+      date: dateStr,
+      note: String(note).trim(),
+      sector: String(sector).trim(),
+      opttype: normalType==='option'?opttype:'',
+      strike: normalType==='option'?strike:null,
+      expiry: normalType==='option'?String(expiry).trim():''
+    });
+  });
+  return imported;
+}
+
+function showXLSXPreview(rows){
+  const keys = Object.keys(rows[0]);
+  const msg = 'Format not recognized automatically.' + String.fromCharCode(10) + 'Columns found: ' + keys.join(', ') + String.fromCharCode(10) + 'Expected columns: Symbol, Quantity, Price/Cost, Type, Platform, Currency, Date' + String.fromCharCode(10) + 'Download the template (Template button) for the correct format.';
+  alert(msg);
+}
+
+// TEMPLATE EXPORT για εισαγωγή
+function exportTemplate(){
+  const template = [
+    {Symbol:'META',Type:'stock',Platform:'Freedom24',Quantity:18,Price:600,Currency:'USD',Date:'2024-01-15',Sector:'Technology',Notes:''},
+    {Symbol:'VUAG',Type:'etf',Platform:'XSpot',Quantity:150,Price:115,Currency:'EUR',Date:'2023-06-01',Sector:'ETF',Notes:'S&P500'},
+    {Symbol:'BTC',Type:'crypto',Platform:'Binance',Quantity:0.09,Price:40000,Currency:'USD',Date:'2023-01-10',Sector:'Crypto',Notes:''},
+    {Symbol:'IBIT',Type:'option',Platform:'Freedom24',Quantity:1,Price:12.25,Currency:'USD',Date:'2024-06-01',Sector:'Option',Notes:'Long Call',Strike:60,Expiry:'2028-06-20',Opttype:'CALL'}
+  ];
+  const ws = XLSX.utils.json_to_sheet(template);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Portfolio');
+  XLSX.writeFile(wb, 'portfolio-template.xlsx');
+}
+
+// ETORO DIVIDEND IMPORT
+function importEtoroDivs(){
+  document.getElementById('etoro-div-file').click();
+}
+
+function loadEtoroDivs(e){
+  var file = e.target.files[0]; if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    try{
+      var data = new Uint8Array(ev.target.result);
+      var wb = XLSX.read(data, {type:'array', cellDates:true});
+
+      // MERISMA
+      var divSheet = wb.SheetNames.find(function(s){ return s.toLowerCase().includes('dividend'); });
+      var importedDivs = [];
+      if(divSheet){
+        var divRows = XLSX.utils.sheet_to_json(wb.Sheets[divSheet], {defval:''});
+        var nameMap = {
+          'Apple':'AAPL','Microsoft':'MSFT','NIKE':'NKE','Alibaba':'BABA',
+          'PepsiCo':'PEP','Pfizer':'PFE','Visa':'V','Novo-Nordisk':'NVO',
+          'LVMH':'MC','Power Integrations':'POWI','VMware':'VMW',
+          'Consolidated Edison':'ED','Western Union':'WU','MercadoLibre':'MELI',
+          'PayPal':'PYPL','Meta Platforms':'META','Amazon':'AMZN','Tesla':'TSLA',
+          'SPX500':'SPX500','Booking':'BKNG','SoFi':'SOFI','AMD':'AMD',
+          'NVIDIA':'NVDA','Netflix':'NFLX','Alphabet':'GOOG','Google':'GOOG'
+        };
+        divRows.forEach(function(row){
+          var dateRaw = row['Date Of Payment'] || '';
+          var name = String(row['Instrument Name'] || '').trim();
+          var amtEur = parseFloat(row['Net Dividend Received (EUR)'] || 0);
+          if(!name || amtEur <= 0) return;
+          var dateStr = '';
+          if(dateRaw instanceof Date){
+            dateStr = dateRaw.toISOString().slice(0,10);
+          } else {
+            var s = String(dateRaw).slice(0,10);
+            var parts = s.split('/');
+            if(parts.length===3) dateStr = parts[2]+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0');
+            else dateStr = s;
+          }
+          var ticker = name;
+          Object.entries(nameMap).forEach(function(entry){
+            if(name.toLowerCase().includes(entry[0].toLowerCase())) ticker = entry[1];
+          });
+          if(ticker.length > 10) ticker = ticker.slice(0,8).toUpperCase().replace(/\s+/g,'');
+          importedDivs.push({id:Date.now()+Math.random(), sym:ticker, amount:Math.round(amtEur*10000)/10000, date:dateStr, note:name});
+        });
+      }
+
+      // KATATHESEIS
+      var actSheet = wb.SheetNames.find(function(s){ return s.toLowerCase().includes('activity'); });
+      var importedDeps = [];
+      if(actSheet){
+        var actRows = XLSX.utils.sheet_to_json(wb.Sheets[actSheet], {defval:''});
+        actRows.forEach(function(row){
+          var type = String(row['Type']||'').trim();
+          if(type !== 'Deposit') return;
+          var dateRaw = row['Date'] || '';
+          var amtEur = parseFloat(row['Amount'] || 0);
+          var detail = String(row['Details']||'').trim();
+          if(amtEur <= 0) return;
+          var dateStr = '';
+          if(dateRaw instanceof Date){
+            dateStr = dateRaw.toISOString().slice(0,10);
+          } else {
+            var s = String(dateRaw).slice(0,10);
+            var parts = s.split('/');
+            if(parts.length===3) dateStr = parts[2]+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0');
+            else dateStr = s;
+          }
+          importedDeps.push({id:Date.now()+Math.random(), plat:'eToro', amount:Math.round(amtEur*100)/100, date:dateStr, note:detail});
+        });
+      }
+
+      // RESULT
+      if(!importedDivs.length && !importedDeps.length){
+        alert('No dividends or deposits found in this file.');
+        return;
+      }
+
+      var msg = 'eToro import ready:' + String.fromCharCode(10);
+      if(importedDivs.length) msg += '- ' + importedDivs.length + ' dividends (EUR ' + importedDivs.reduce(function(s,d){return s+d.amount;},0).toFixed(2) + ')' + String.fromCharCode(10);
+      if(importedDeps.length) msg += '- ' + importedDeps.length + ' deposits (EUR ' + importedDeps.reduce(function(s,d){return s+d.amount;},0).toFixed(2) + ')' + String.fromCharCode(10);
+      msg += String.fromCharCode(10) + 'Add to existing? (Cancel = replace all)';
+
+      var addToExisting = dividends.length || deposits.length ? confirm(msg) : true;
+
+      if(importedDivs.length){
+        dividends = addToExisting ? dividends.concat(importedDivs) : importedDivs;
+        dividends.sort(function(a,b){return b.date.localeCompare(a.date);});
+      }
+      if(importedDeps.length){
+        deposits = addToExisting ? deposits.concat(importedDeps) : importedDeps;
+        deposits.sort(function(a,b){return b.date.localeCompare(a.date);});
+      }
+
+      save();
+      renderDividends();
+      renderDeposits();
+      updateMetrics();
+
+      var summary = 'Import successful!' + String.fromCharCode(10);
+      if(importedDivs.length) summary += importedDivs.length + ' dividends imported' + String.fromCharCode(10);
+      if(importedDeps.length) summary += importedDeps.length + ' deposits imported';
+      alert(summary);
+
+    }catch(err){
+      console.error(err);
+      alert('Error: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+  e.target.value = '';
+}
+
+// INIT
+
+if(positions.length){
+  renderAll();
+  refreshPrices();
+} else {
+  renderAll();
+}
+</script>
+</body>
+</html>
