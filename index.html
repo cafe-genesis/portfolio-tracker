@@ -166,7 +166,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
     <button class="btn btn-sm" onclick="importXLSX()" style="background:rgba(29,184,122,.1);border-color:var(--green);color:var(--green)">↑ Excel/CSV</button>
     <input type="file" id="import-file" accept=".json" style="display:none" onchange="loadImport(event)">
     <input type="file" id="import-xlsx" accept=".xlsx,.xls,.csv" style="display:none" onchange="loadXLSX(event)">
-    <button class="btn btn-sm" onclick="showApiKeyDialog()" id="apikey-btn" style="background:rgba(245,166,35,.1);border-color:var(--amber);color:var(--amber)">🔑 API Key</button>
     <button class="btn btn-sm" onclick="refreshPrices()">↻ Τιμές</button>
     <button class="btn btn-primary" onclick="openModal('pos')">+ Προσθήκη θέσης</button>
   </div>
@@ -360,24 +359,6 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </div>
 </div>
 
-<!-- API KEY MODAL -->
-<div class="modal-overlay" id="modal-apikey" onclick="if(event.target===this)closeModal('modal-apikey')">
-  <div class="modal" style="max-width:420px">
-    <h3>🔑 Claude API Key <span onclick="closeModal('modal-apikey')" style="cursor:pointer;color:var(--text3);font-weight:400;font-size:20px">×</span></h3>
-    <p style="font-size:12px;color:var(--text2);margin-bottom:14px;line-height:1.6">Το API key χρειάζεται για την ανανέωση τιμών μέσω Claude AI. Αποθηκεύεται μόνο στον browser σου (localStorage) και δεν αποστέλλεται πουθενά αλλού.</p>
-    <div class="form-row">
-      <label>API Key</label>
-      <input id="apikey-input" type="password" placeholder="sk-ant-api03-..." style="font-family:monospace;font-size:12px">
-    </div>
-    <div id="apikey-status" style="font-size:12px;margin-top:8px;min-height:18px"></div>
-    <div class="modal-btns">
-      <button class="btn" onclick="clearApiKey()" style="color:var(--red)">Διαγραφή</button>
-      <button class="btn" onclick="closeModal('modal-apikey')">Ακύρωση</button>
-      <button class="btn btn-primary" onclick="saveApiKey()">Αποθήκευση</button>
-    </div>
-  </div>
-</div>
-
 <!-- MODAL ΘΕΣΗ -->
 <div class="modal-overlay" id="modal-pos" onclick="if(event.target===this)closeModal('modal-pos')">
   <div class="modal">
@@ -536,57 +517,9 @@ const TICKER_SUFFIX_MAP = {
 
 function resolveYahooTicker(sym){ return TICKER_SUFFIX_MAP[sym] || sym; }
 
-// API KEY MANAGEMENT
-function showApiKeyDialog(){
-  var existing = localStorage.getItem('claude_api_key') || '';
-  var inp = document.getElementById('apikey-input');
-  inp.value = existing ? '••••••••••••••••' : '';
-  var status = document.getElementById('apikey-status');
-  status.textContent = existing ? 'Key αποθηκευμένο ✓' : 'Δεν υπαρχει key';
-  status.style.color = existing ? 'var(--green)' : 'var(--text3)';
-  openModal('apikey');
-}
-
-function saveApiKey(){
-  var val = document.getElementById('apikey-input').value.trim();
-  if(!val || val.includes('•')){ closeModal('modal-apikey'); return; }
-  if(!val.startsWith('sk-ant-')){
-    document.getElementById('apikey-status').textContent = 'Μη εγκυρο key — πρεπει να αρχιζει με sk-ant-';
-    document.getElementById('apikey-status').style.color = 'var(--red)';
-    return;
-  }
-  localStorage.setItem('claude_api_key', val);
-  document.getElementById('apikey-status').textContent = 'Αποθηκευτηκε! ✓';
-  document.getElementById('apikey-status').style.color = 'var(--green)';
-  document.getElementById('apikey-btn').style.background = 'rgba(29,184,122,.1)';
-  document.getElementById('apikey-btn').style.borderColor = 'var(--green)';
-  document.getElementById('apikey-btn').style.color = 'var(--green)';
-  document.getElementById('apikey-btn').textContent = '🔑 Key OK';
-  setTimeout(function(){ closeModal('modal-apikey'); }, 800);
-}
-
-function clearApiKey(){
-  localStorage.removeItem('claude_api_key');
-  document.getElementById('apikey-input').value = '';
-  document.getElementById('apikey-status').textContent = 'Key διαγραφηκε';
-  document.getElementById('apikey-status').style.color = 'var(--text3)';
-  document.getElementById('apikey-btn').textContent = '🔑 API Key';
-  document.getElementById('apikey-btn').style.color = 'var(--amber)';
-}
-
-function getApiKey(){
-  return localStorage.getItem('claude_api_key') || '';
-}
-
 // Fetch prices using Claude API with web search
 async function fetchPricesFor(syms){
   if(!syms || !syms.length) return;
-  if(!getApiKey()){
-    showApiKeyDialog();
-    document.getElementById('apikey-status').textContent = 'Βαλε πρωτα το API key για να ανανεωσεις τιμες';
-    document.getElementById('apikey-status').style.color = 'var(--amber)';
-    return;
-  }
   document.getElementById('last-upd').textContent = 'Φορτωση τιμων...';
   
   // Process in batches of 6 symbols
